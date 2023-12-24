@@ -1,0 +1,70 @@
+version: "3.8"
+
+services: 
+  pg_db:
+    image: postgres:11.22-bullseye
+    container_name: pg_db3
+    restart: always
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=location
+    ports:
+      - 5432:5432
+
+      
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+    - 9090:9090
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  driverservicemic:
+    build:
+      context: driverservice
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 8082:8082
+    environment:
+      - LOCATION=http://locationmic:8080/location/add #связь
+      - IP=0.0.0.0:8082
+      - MONGO_URL=mongodb
+    depends_on:
+      - mongodb
+
+  locationmic:
+    build:
+      context: driver
+      dockerfile: Dockerfile
+    # restart: always
+    ports:
+      - 8080:8080
+    environment:
+      - IP=0.0.0.0:8080 #связь
+      - DSN=host=pg_db user=root password=root dbname=location port=5432 sslmode=disable
+    depends_on:
+      - pg_db
+    # networks:
+    #   - postgres
+
+      
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    restart: always
+    ports:
+          - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: local
+    command: mongod --bind_ip mongodb
+
+# networks:
+#     postgres:
+#       driver: bridge
+      
